@@ -19,6 +19,8 @@ contract Lottery is VRFConsumerBase, Ownable {
     address[] public players;
     address public recentWinner;
     uint256 public randomness;
+    uint256 public multiplier;
+
     uint256 public fee;
     bytes32 public keyhash;
 
@@ -63,6 +65,9 @@ contract Lottery is VRFConsumerBase, Ownable {
     function endLottery() public onlyOwner returns (bytes32 requestId) {
         require(LINK.balanceOf(address(this)) >= fee, "Not enough LINK");
         lottery_state = LOTTERY_STATE.CALCULATING_WINNER;
+        multiplier =
+            metakatToken.balanceOf(address(this)) /
+            Ticket.ticket_cost();
         return requestRandomness(keyhash, fee);
     }
 
@@ -75,15 +80,18 @@ contract Lottery is VRFConsumerBase, Ownable {
             "You aren't there yet!"
         );
         require(_randomness > 0, "random-not-found");
-        uint256 indexOfWinner = _randomness % players.length;
-        recentWinner = players[indexOfWinner];
-        metakatToken.transfer(
-            recentWinner,
-            metakatToken.balanceOf(address(this))
-        );
+
+        uint256 indexOfWinner = _randomness % (players.length + multiplier);
+        if (indexOfWinner < players.length){
+            recentWinner = players[indexOfWinner];
+            metakatToken.transfer(
+                recentWinner,
+                metakatToken.balanceOf(address(this))
+            )};
 
         // Reset
         players = new address[](0);
+        multiplier = 0;
         lottery_state = LOTTERY_STATE.CLOSED;
         randomness = _randomness;
     }
