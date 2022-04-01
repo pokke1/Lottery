@@ -5,10 +5,11 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
+import "./LotteryTicket.sol";
 
 contract Lottery is VRFConsumerBase, Ownable {
     IERC20 public metakatToken;
-    IERC20 public Ticket;
+    LotteryTicket public ticket;
 
     enum LOTTERY_STATE {
         OPEN,
@@ -35,7 +36,7 @@ contract Lottery is VRFConsumerBase, Ownable {
         lottery_state = LOTTERY_STATE.CLOSED;
         fee = _fee;
         keyhash = _keyhash;
-        Ticket = IERC20(_ticket);
+        ticket = LotteryTicket(_ticket);
         metakatToken = IERC20(_metakatTokenAddress);
     }
 
@@ -48,9 +49,9 @@ contract Lottery is VRFConsumerBase, Ownable {
     }
 
     function enterLottery() public {
-        require(Ticket.balanceOf(msg.sender) >= 10**18, "Insufficient Balance");
+        require(ticket.balanceOf(msg.sender) >= 10**18, "Insufficient Balance");
         require(lottery_state == LOTTERY_STATE.OPEN, "Lottery not opened yet!");
-        Ticket.transferFrom(msg.sender, address(this), 10**18);
+        ticket.transferFrom(msg.sender, address(this), 10**18);
         players.push(msg.sender);
     }
 
@@ -67,7 +68,7 @@ contract Lottery is VRFConsumerBase, Ownable {
         lottery_state = LOTTERY_STATE.CALCULATING_WINNER;
         multiplier =
             metakatToken.balanceOf(address(this)) /
-            Ticket.ticket_cost();
+            ticket.ticketCost();
         return requestRandomness(keyhash, fee);
     }
 
@@ -82,12 +83,13 @@ contract Lottery is VRFConsumerBase, Ownable {
         require(_randomness > 0, "random-not-found");
 
         uint256 indexOfWinner = _randomness % (players.length + multiplier);
-        if (indexOfWinner < players.length){
+        if (indexOfWinner < players.length) {
             recentWinner = players[indexOfWinner];
             metakatToken.transfer(
                 recentWinner,
                 metakatToken.balanceOf(address(this))
-            )};
+            );
+        }
 
         // Reset
         players = new address[](0);
