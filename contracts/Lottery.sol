@@ -21,7 +21,7 @@ contract Lottery is VRFConsumerBase, Ownable {
     address public recentWinner;
     uint256 public randomness;
     uint256 public multiplier;
-
+    uint256 public prize;
     uint256 public fee;
     bytes32 public keyhash;
 
@@ -41,24 +41,35 @@ contract Lottery is VRFConsumerBase, Ownable {
     }
 
     function getPrizeValue() public view returns (uint256) {
-        return metakatToken.balanceOf(address(this));
+        require(
+            lottery_state == LOTTERY_STATE.OPEN,
+            "Lottery is not opened yet"
+        );
+        return prize;
     }
 
     function getNumberOfPlayers() public view returns (uint256) {
+        require(
+            lottery_state == LOTTERY_STATE.OPEN,
+            "Lottery is not opened yet"
+        );
         return players.length;
     }
 
-    function enterLottery() public {
+    // Now allows for multiple entries without having to call the function several times
+    function enterLottery(uint256 _entries) public {
         require(
-            ticket.balanceOf(msg.sender) >= 1,
+            ticket.balanceOf(msg.sender) >= _entries,
             "You need a Ticket to enter the lottery"
         );
         require(lottery_state == LOTTERY_STATE.OPEN, "Lottery not opened yet!");
-        ticket.transferFrom(msg.sender, address(this), 1);
-        players.push(msg.sender);
+        ticket.transferFrom(msg.sender, address(this), _entries);
+        for (uint256 i = 0; i < _entries; i++) {
+            players.push(msg.sender);
+        }
     }
 
-    function startLottery() public onlyOwner {
+    function startLottery() internal {
         require(
             lottery_state == LOTTERY_STATE.CLOSED,
             "Can't start a new lottery yet!"
@@ -66,12 +77,16 @@ contract Lottery is VRFConsumerBase, Ownable {
         lottery_state = LOTTERY_STATE.OPEN;
     }
 
+    function fundLottery(uint256 _amount) public onlyOwner {
+        metakatToken.transferFrom(msg.sender, address(this), _amount);
+        prize = _amount;
+        startLottery();
+    }
+
     function endLottery() public onlyOwner returns (bytes32 requestId) {
         require(LINK.balanceOf(address(this)) >= fee, "Not enough LINK");
         lottery_state = LOTTERY_STATE.CALCULATING_WINNER;
-        multiplier =
-            metakatToken.balanceOf(address(this)) /
-            ticket.ticketCost();
+        multiplier = prize / ticket.ticketCost();
         return requestRandomness(keyhash, fee);
     }
 
@@ -86,12 +101,13 @@ contract Lottery is VRFConsumerBase, Ownable {
         require(_randomness > 0, "random-not-found");
 
         uint256 indexOfWinner = _randomness % (players.length + multiplier);
+
         if (indexOfWinner < players.length) {
             recentWinner = players[indexOfWinner];
-            metakatToken.transfer(
-                recentWinner,
-                metakatToken.balanceOf(address(this))
-            );
+
+            metakatToken.transfer(recentWinner, prize);
+            ticket.withdrawFund();
+            prize = metakatToken.balanceOf(address(this));
         }
 
         // Reset
@@ -100,6 +116,7 @@ contract Lottery is VRFConsumerBase, Ownable {
         multiplier = 0;
         lottery_state = LOTTERY_STATE.CLOSED;
         randomness = _randomness;
+        startLottery();
     }
 
     // This contract is owner of LotteryTicket.sol contract
@@ -109,9 +126,5 @@ contract Lottery is VRFConsumerBase, Ownable {
 
     function changeMinimumHold(uint256 _new_hold) public onlyOwner {
         ticket.changeMinimumHold(_new_hold);
-    }
-
-    function withdrawFund(address _receiver) public onlyOwner {
-        ticket.withdrawFund(_receiver);
     }
 }

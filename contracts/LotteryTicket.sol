@@ -45,8 +45,8 @@ contract LotteryTicket is ERC20, Ownable {
         _mint(_receiver, _amount);
     }
 
-    function withdrawFund(address _receiver) public onlyOwner {
-        metakatToken.transfer(_receiver, metakatToken.balanceOf(address(this)));
+    function withdrawFund() public onlyOwner {
+        metakatToken.transfer(owner(), metakatToken.balanceOf(address(this)));
     }
 
     function buyTicket(uint256 _amount) public {
