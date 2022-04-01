@@ -49,13 +49,14 @@ contract LotteryTicket is ERC20, Ownable {
         metakatToken.transfer(_receiver, metakatToken.balanceOf(address(this)));
     }
 
-    function buyTicket() public {
+    function buyTicket(uint256 _amount) public {
+        uint256 cost = ticketCost * _amount;
         require(
-            metakatToken.balanceOf(msg.sender) >= ticketCost,
+            metakatToken.balanceOf(msg.sender) >= cost,
             "Insufficient Balance"
         );
-        metakatToken.transferFrom(msg.sender, address(this), ticketCost);
-        _mint(msg.sender, 10**18);
+        metakatToken.transferFrom(msg.sender, address(this), cost);
+        _mint(msg.sender, _amount);
     }
 
     function getFreeTicket() public {
@@ -67,8 +68,12 @@ contract LotteryTicket is ERC20, Ownable {
             metakatToken.balanceOf(msg.sender) >= minimumHold,
             "You need to hold at least 20.000.000 Metakat"
         );
-        _mint(msg.sender, 10**18);
+        _mint(msg.sender, 1);
         receivedFreeTicket[msg.sender] = true;
         receivers.push(msg.sender);
+    }
+
+    function decimals() public view virtual override returns (uint8) {
+        return 0;
     }
 }

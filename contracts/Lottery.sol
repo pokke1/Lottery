@@ -49,9 +49,12 @@ contract Lottery is VRFConsumerBase, Ownable {
     }
 
     function enterLottery() public {
-        require(ticket.balanceOf(msg.sender) >= 10**18, "Insufficient Balance");
+        require(
+            ticket.balanceOf(msg.sender) >= 1,
+            "You need a Ticket to enter the lottery"
+        );
         require(lottery_state == LOTTERY_STATE.OPEN, "Lottery not opened yet!");
-        ticket.transferFrom(msg.sender, address(this), 10**18);
+        ticket.transferFrom(msg.sender, address(this), 1);
         players.push(msg.sender);
     }
 
@@ -92,9 +95,23 @@ contract Lottery is VRFConsumerBase, Ownable {
         }
 
         // Reset
+        ticket.resetFreeTicket();
         players = new address[](0);
         multiplier = 0;
         lottery_state = LOTTERY_STATE.CLOSED;
         randomness = _randomness;
+    }
+
+    // This contract is owner of LotteryTicket.sol contract
+    function changeTicketCost(uint256 _new_cost) public onlyOwner {
+        ticket.changeTicketCost(_new_cost);
+    }
+
+    function changeMinimumHold(uint256 _new_hold) public onlyOwner {
+        ticket.changeMinimumHold(_new_hold);
+    }
+
+    function withdrawFund(address _receiver) public onlyOwner {
+        ticket.withdrawFund(_receiver);
     }
 }

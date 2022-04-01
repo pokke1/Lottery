@@ -9,4 +9,6 @@ def main():
 def deploy_lottery_ticket():
     account = get_account()
     metakat = Metakat[-1]
-    tx = LotteryTicket.deploy("Ticket", "TKT", metakat.address, {"from": account})
+    ticket = LotteryTicket.deploy("Ticket", "TKT", metakat.address, {"from": account})
+    ticket.wait(1)
+    tx = ticket.sendFreeTicket(account.address, 1)
