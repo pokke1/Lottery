@@ -24,6 +24,7 @@ contract Lottery is VRFConsumerBase, Ownable {
     uint256 public prize;
     uint256 public fee;
     bytes32 public keyhash;
+    uint256 public indexOfWinner;
 
     constructor(
         address _metakatTokenAddress,
@@ -69,24 +70,19 @@ contract Lottery is VRFConsumerBase, Ownable {
         }
     }
 
-    function startLottery() internal {
+    function startLottery() public onlyOwner {
         require(
             lottery_state == LOTTERY_STATE.CLOSED,
             "Can't start a new lottery yet!"
         );
         lottery_state = LOTTERY_STATE.OPEN;
-    }
-
-    function fundLottery(uint256 _amount) public onlyOwner {
-        metakatToken.transferFrom(msg.sender, address(this), _amount);
-        prize = _amount;
-        startLottery();
+        prize = metakatToken.balanceOf(address(this));
+        multiplier = prize / ticket.ticketCost();
     }
 
     function endLottery() public onlyOwner returns (bytes32 requestId) {
         require(LINK.balanceOf(address(this)) >= fee, "Not enough LINK");
         lottery_state = LOTTERY_STATE.CALCULATING_WINNER;
-        multiplier = prize / ticket.ticketCost();
         return requestRandomness(keyhash, fee);
     }
 
@@ -100,31 +96,51 @@ contract Lottery is VRFConsumerBase, Ownable {
         );
         require(_randomness > 0, "random-not-found");
 
-        uint256 indexOfWinner = _randomness % (players.length + multiplier);
+        indexOfWinner = _randomness % (players.length + multiplier);
 
         if (indexOfWinner < players.length) {
             recentWinner = players[indexOfWinner];
-
             metakatToken.transfer(recentWinner, prize);
-            ticket.withdrawFund();
-            prize = metakatToken.balanceOf(address(this));
         }
 
-        // Reset
+        // Reset variables and prepare for the next run
+        ticket.withdrawFund();
         ticket.resetFreeTicket();
         players = new address[](0);
-        multiplier = 0;
         lottery_state = LOTTERY_STATE.CLOSED;
         randomness = _randomness;
-        startLottery();
     }
 
     // This contract is owner of LotteryTicket.sol contract
     function changeTicketCost(uint256 _new_cost) public onlyOwner {
+        require(
+            lottery_state == LOTTERY_STATE.CLOSED,
+            "Ticket cost can be changed only when lottery is closed"
+        );
         ticket.changeTicketCost(_new_cost);
     }
 
     function changeMinimumHold(uint256 _new_hold) public onlyOwner {
+        require(
+            lottery_state == LOTTERY_STATE.CLOSED,
+            "Minimum hold can be changed only when lottery is closed"
+        );
         ticket.changeMinimumHold(_new_hold);
+    }
+
+    function sendFreeTicket(address _receiver, uint256 _amount)
+        public
+        onlyOwner
+    {
+        require(
+            lottery_state == LOTTERY_STATE.OPEN,
+            "Ticket cost must be set first, wait for lottery opening."
+        );
+        ticket.sendFreeTicket(_receiver, _amount);
+    }
+
+    // Add a function to withdraw the funds in case of migrations
+    function migrateLottery() public onlyOwner {
+        metakatToken.transfer(owner(), metakatToken.balanceOf(address(this)));
     }
 }

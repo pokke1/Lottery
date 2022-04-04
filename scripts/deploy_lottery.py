@@ -1,23 +1,33 @@
-from scripts.helpful_scripts import get_account
+from tracemalloc import start
+from turtle import st
+from webbrowser import get
+from scripts.helpful_scripts import get_account, get_second_account
 from scripts.deploy_metakat import deploy_metakat
 from brownie import Lottery, Metakat, LotteryTicket
 
 
 def main():
-    metakat = deploy_metakat()
-    deploy_lottery(metakat)
+    # metakat = deploy_metakat()
+    # deploy_lottery(metakat)
+    # start_lottery()
+    # enter_lottery2(100)
+    # enter_lottery(10)
+    # end_lottery()
+    get_state()
 
 
 # Remember to change constructor for VRFcordinator when deploying on bsc main-net
 def deploy_lottery(_metakat):
     account = get_account()
-    metakat = Metakat[_metakat]
+    metakat = Metakat[-1]
     ticket = LotteryTicket.deploy(
         "Lottery Ticket", "Ticket", metakat.address, {"from": account}
     )
-    ticket.wait(1)
+
     print("Lottery Ticket deployed")
-    metakat.excludeFromFee(ticket.address)
+    tx = metakat.excludeFromFee(ticket.address)
+    tx.wait(1)
+    print("Ticket  excluded from metakat fee")
     lottery = Lottery.deploy(
         metakat.address,
         ticket.address,
@@ -27,12 +37,15 @@ def deploy_lottery(_metakat):
         "0xcaf3c3727e033261d383b315559476f48034c13b18f8cafed4d871abe5049186",
         {"from": account},
     )
-    lottery.wait(1)
+
     print("Deployed lottery!")
     transfer_ownership = ticket.transferOwnership(lottery.address, {"from": account})
     transfer_ownership.wait(1)
+    print("Ownership has been trasnfered succesfully!")
 
-    return lottery, ticket, transfer_ownership
+    metakat.transfer(lottery.address, 1000000 * 10**9, {"from": account})
+
+    return lottery, ticket
 
 
 def start_lottery():
@@ -44,21 +57,46 @@ def start_lottery():
     return tx
 
 
-def enter_lottery():
+def enter_lottery(_entries):
     account = get_account()
+
     metakat = Metakat[-1]
     lottery = Lottery[-1]
-    tx1 = metakat.approve(lottery.address, lottery.entry_cost(), {"from": account})
-    tx1.wait(1)
-    tx2 = lottery.enterLottery({"from": account})
+    ticket = LotteryTicket[-1]
+    metakat.approve(ticket.address, _entries * ticket.ticketCost(), {"from": account})
+    ticket.buyTicket(_entries, {"from": account})
+    ticket.approve(lottery.address, _entries, {"from": account})
+    lottery.enterLottery(_entries, {"from": account})
+
+
+def enter_lottery2(_entries):
+    account = get_account()
+    account2 = get_second_account()
+
+    lottery = Lottery[-1]
+    ticket = LotteryTicket[-1]
+    lottery.sendFreeTicket(account2.address, _entries, {"from": account})
+    ticket.approve(lottery.address, _entries, {"from": account2})
+    lottery.enterLottery(_entries, {"from": account2})
 
 
 def end_lottery():
     account = get_account()
     lottery = Lottery[-1]
     print(f"Current prize for winner : {lottery.getPrizeValue()}")
+    print(f"Current multiplier : {lottery.multiplier()}")
     print(f"Number of players ---> {lottery.getNumberOfPlayers()}")
     tx = lottery.endLottery({"from": account})
     print(f"And the winnner is {lottery.recentWinner()}")
-    tx.wait(2)
+    tx.wait(5)
     print(f"And the winnner is {lottery.recentWinner()}")
+    print(f"with Index {lottery.indexOfWinner()}")
+
+
+def get_state():
+    lottery = Lottery[-1]
+    print(f"Current prize for winner : {lottery.prize()}")
+
+    print(f"Lottery state is {lottery.lottery_state()}")
+    print(f"And the winnner is {lottery.recentWinner()}")
+    print(f"with Index {lottery.indexOfWinner()}")
