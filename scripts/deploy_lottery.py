@@ -7,13 +7,14 @@ from brownie import Lottery, Metakat, LotteryTicket
 
 
 def main():
+    pass
     # metakat = deploy_metakat()
     # deploy_lottery(metakat)
     # start_lottery()
     # enter_lottery2(100)
-    # enter_lottery(10)
+    # enter_lottery(10
     # end_lottery()
-    get_state()
+    # get_state()
 
 
 # Remember to change constructor for VRFcordinator when deploying on bsc main-net
@@ -59,7 +60,6 @@ def start_lottery():
 
 def enter_lottery(_entries):
     account = get_account()
-
     metakat = Metakat[-1]
     lottery = Lottery[-1]
     ticket = LotteryTicket[-1]
@@ -72,7 +72,6 @@ def enter_lottery(_entries):
 def enter_lottery2(_entries):
     account = get_account()
     account2 = get_second_account()
-
     lottery = Lottery[-1]
     ticket = LotteryTicket[-1]
     lottery.sendFreeTicket(account2.address, _entries, {"from": account})
@@ -87,16 +86,6 @@ def end_lottery():
     print(f"Current multiplier : {lottery.multiplier()}")
     print(f"Number of players ---> {lottery.getNumberOfPlayers()}")
     tx = lottery.endLottery({"from": account})
-    print(f"And the winnner is {lottery.recentWinner()}")
     tx.wait(5)
-    print(f"And the winnner is {lottery.recentWinner()}")
-    print(f"with Index {lottery.indexOfWinner()}")
-
-
-def get_state():
-    lottery = Lottery[-1]
-    print(f"Current prize for winner : {lottery.prize()}")
-
-    print(f"Lottery state is {lottery.lottery_state()}")
     print(f"And the winnner is {lottery.recentWinner()}")
     print(f"with Index {lottery.indexOfWinner()}")
