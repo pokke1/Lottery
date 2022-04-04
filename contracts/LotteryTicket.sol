@@ -21,7 +21,7 @@ contract LotteryTicket is ERC20, Ownable {
         metakatToken = IERC20(_metakatTokenAddress);
 
         minimumHold = 20000000 * 10**9; // 20 Milions token
-        ticketCost = 100000 * 10**9; // 100k Metakat cost of tikcket
+        ticketCost = 100000 * 10**9; // 100k Metakat cost of ticket
     }
 
     function changeTicketCost(uint256 _new_cost) public onlyOwner {

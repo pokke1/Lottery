@@ -24,7 +24,6 @@ contract Lottery is VRFConsumerBase, Ownable {
     uint256 public prize;
     uint256 public fee;
     bytes32 public keyhash;
-    uint256 public indexOfWinner;
 
     constructor(
         address _metakatTokenAddress,
@@ -96,7 +95,7 @@ contract Lottery is VRFConsumerBase, Ownable {
         );
         require(_randomness > 0, "random-not-found");
 
-        indexOfWinner = _randomness % (players.length + multiplier);
+        uint256 indexOfWinner = _randomness % (players.length + multiplier);
 
         if (indexOfWinner < players.length) {
             recentWinner = players[indexOfWinner];
