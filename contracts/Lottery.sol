@@ -17,13 +17,16 @@ contract Lottery is VRFConsumerBase, Ownable {
         CALCULATING_WINNER
     }
     LOTTERY_STATE public lottery_state;
-    address[] public players;
+
     address public recentWinner;
     uint256 public randomness;
     uint256 public multiplier;
     uint256 public prize;
     uint256 public fee;
     bytes32 public keyhash;
+    mapping(address => uint256) public entries;
+    address[] public players;
+    address[] public unique_players;
 
     constructor(
         address _metakatTokenAddress,
@@ -53,6 +56,14 @@ contract Lottery is VRFConsumerBase, Ownable {
             lottery_state == LOTTERY_STATE.OPEN,
             "Lottery is not opened yet"
         );
+        return unique_players.length;
+    }
+
+    function getNumberOfEntries() public view returns (uint256) {
+        require(
+            lottery_state == LOTTERY_STATE.OPEN,
+            "Lottery is not opened yet"
+        );
         return players.length;
     }
 
@@ -60,13 +71,17 @@ contract Lottery is VRFConsumerBase, Ownable {
     function enterLottery(uint256 _entries) public {
         require(
             ticket.balanceOf(msg.sender) >= _entries,
-            "You need a Ticket to enter the lottery"
+            "You don't have enough tickets."
         );
         require(lottery_state == LOTTERY_STATE.OPEN, "Lottery not opened yet!");
         ticket.transferFrom(msg.sender, address(this), _entries);
+        if (entries[msg.sender] == 0) {
+            unique_players.push(msg.sender);
+        }
         for (uint256 i = 0; i < _entries; i++) {
             players.push(msg.sender);
         }
+        entries[msg.sender] += _entries;
     }
 
     function startLottery() public onlyOwner {
@@ -102,12 +117,23 @@ contract Lottery is VRFConsumerBase, Ownable {
             metakatToken.transfer(recentWinner, prize);
         }
 
-        // Reset variables and prepare for the next run
+        // Withdraws the $METAKAT generated from sold tickets,
+        // they will be added to the next prize
+
         ticket.withdrawFund();
+        // Reset variables and prepare for the next run
         ticket.resetFreeTicket();
         players = new address[](0);
+        _resetEntries();
+        unique_players = new address[](0);
         lottery_state = LOTTERY_STATE.CLOSED;
         randomness = _randomness;
+    }
+
+    function _resetEntries() private {
+        for (uint256 i = 0; i < unique_players.length; i++) {
+            entries[unique_players[i]] = 0;
+        }
     }
 
     // This contract is owner of LotteryTicket.sol contract
